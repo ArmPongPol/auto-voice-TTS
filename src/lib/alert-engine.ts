@@ -60,12 +60,18 @@ export function playChime(priority: Priority, vol: number): Promise<void> {
 const VOICE_LS_KEY = 'elevenlabs_voice_id';
 
 function getVoiceId(): string {
-  if (typeof localStorage === 'undefined') return '';
-  return localStorage.getItem(VOICE_LS_KEY) ?? '';
+  // localStorage may be a partial shim during SSR — guard against missing methods.
+  try {
+    return localStorage.getItem(VOICE_LS_KEY) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 export function setVoiceId(id: string): void {
-  if (typeof localStorage !== 'undefined') localStorage.setItem(VOICE_LS_KEY, id);
+  try {
+    localStorage.setItem(VOICE_LS_KEY, id);
+  } catch { /* not available during SSR */ }
 }
 
 export interface ElevenLabsVoice {

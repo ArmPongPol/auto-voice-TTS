@@ -1,15 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Priority, CATS, PRESETS } from '@/lib/data';
-import { Badge } from './micro';
-import { Ic } from './icons';
+import { CATS, PRESETS } from '@/lib/data';
+import { useAlerts } from '@/components/alert-provider';
+import { Badge } from '@/components/micro';
+import { Ic } from '@/components/icons';
 
-interface PresetsTabProps {
-  onAdd: (text: string, pri: Priority, src: string) => void;
-}
-
-export default function PresetsTab({ onAdd }: PresetsTabProps) {
+export default function PresetsPage() {
+  const { addAlert } = useAlerts();
   const [cat, setCat] = useState('all');
   const list = cat === 'all' ? PRESETS : PRESETS.filter((p) => p.cat === cat);
 
@@ -24,7 +22,7 @@ export default function PresetsTab({ onAdd }: PresetsTabProps) {
       </div>
       <div className="pgrid">
         {list.map((p) => (
-          <div key={p.id} className="pcard" onClick={() => onAdd(p.text, p.pri, 'preset')}>
+          <div key={p.id} className="pcard" onClick={() => addAlert(p.text, p.pri, 'preset')}>
             <div className="pcard-hd">
               <Badge p={p.pri} />
               <div className="pcard-add"><Ic.plus /></div>

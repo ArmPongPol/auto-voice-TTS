@@ -2,12 +2,8 @@
 
 import { useState } from 'react';
 import { Priority } from '@/lib/data';
-import { Ic } from './icons';
-
-interface ManualTabProps {
-  onAdd: (text: string, pri: Priority, src?: string) => void;
-  onPlayNow: (text: string, pri: Priority) => void;
-}
+import { useAlerts } from '@/components/alert-provider';
+import { Ic } from '@/components/icons';
 
 interface PriOpt {
   id: Priority;
@@ -16,7 +12,8 @@ interface PriOpt {
   ds: string;
 }
 
-export default function ManualTab({ onAdd, onPlayNow }: ManualTabProps) {
+export default function ManualPage() {
+  const { addAlert, playNow } = useAlerts();
   const [text, setText] = useState('');
   const [pri, setPri] = useState<Priority>('normal');
 
@@ -26,8 +23,8 @@ export default function ManualTab({ onAdd, onPlayNow }: ManualTabProps) {
     { id: 'emergency', ico: '🔴', nm: 'ฉุกเฉิน',  ds: 'ดำเนินการทันที' },
   ];
 
-  const handleAdd  = () => { if (text.trim()) { onAdd(text.trim(), pri);     setText(''); } };
-  const handlePlay = () => { if (text.trim()) { onPlayNow(text.trim(), pri); setText(''); } };
+  const handleAdd  = () => { if (text.trim()) { addAlert(text.trim(), pri); setText(''); } };
+  const handlePlay = () => { if (text.trim()) { playNow(text.trim(), pri); setText(''); } };
 
   return (
     <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 18 }}>

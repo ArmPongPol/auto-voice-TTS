@@ -1,39 +1,38 @@
 'use client';
 
-import React, { useState, type Dispatch, type SetStateAction } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getElevenLabsStatus, fetchVoices, setVoiceId, type ElevenLabsVoice } from '@/lib/alert-engine';
-import { Ic } from './icons';
+import { useAlerts } from '@/components/alert-provider';
+import { Ic } from '@/components/icons';
 
-interface SettingsTabProps {
-  volume: number;
-  setVolume: Dispatch<SetStateAction<number>>;
-  repeatCount: number;
-  setRepeatCount: Dispatch<SetStateAction<number>>;
-  isMuted: boolean;
-  setIsMuted: Dispatch<SetStateAction<boolean>>;
-  onTest: () => void;
-  onTestVoice: (voiceId: string) => Promise<string | null>;
-  onClearHistory: () => void;
-}
-
-export default function SettingsTab({
-  volume, setVolume, repeatCount, setRepeatCount,
-  isMuted, setIsMuted, onTest, onTestVoice, onClearHistory,
-}: SettingsTabProps) {
+export default function SettingsPage() {
+  const {
+    volume, setVolume, repeatCount, setRepeatCount,
+    isMuted, setIsMuted, testVoice, testSpecificVoice, clearHistory,
+  } = useAlerts();
   const { configured } = getElevenLabsStatus();
   const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ?? '';
   const maskedKey = apiKey ? `${apiKey.slice(0, 8)}••••••••${apiKey.slice(-4)}` : '—';
 
   const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
   const [voiceFetchErr, setVoiceFetchErr] = useState('');
-  const [selectedId, setSelectedId] = useState(() => {
-    if (typeof localStorage === 'undefined') return '';
-    return localStorage.getItem('elevenlabs_voice_id') ?? '';
-  });
-  const [voiceInput, setVoiceInput] = useState(selectedId);
+  const [selectedId, setSelectedId] = useState('');
+  const [voiceInput, setVoiceInput] = useState('');
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, 'ok' | 'fail'>>({});
+
+  // Read the saved voice id on the client only — avoids SSR/hydration issues.
+  // A lazy initializer would run during the server render where localStorage
+  // isn't available, so this mount effect is the correct place to hydrate it.
+  useEffect(() => {
+    const saved = localStorage.getItem('elevenlabs_voice_id') ?? '';
+    if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client hydration of persisted state
+      setSelectedId(saved);
+      setVoiceInput(saved);
+    }
+  }, []);
 
   const handleVoiceChange = (id: string) => {
     setSelectedId(id);
@@ -67,7 +66,7 @@ export default function SettingsTab({
   const handleTestVoice = async (e: React.MouseEvent, voiceId: string) => {
     e.stopPropagation();
     setTestingId(voiceId);
-    const err = await onTestVoice(voiceId);
+    const err = await testSpecificVoice(voiceId);
     setTestResults((r) => ({ ...r, [voiceId]: err ? 'fail' : 'ok' }));
     setTestingId(null);
     if (!err) handleVoiceChange(voiceId);
@@ -219,7 +218,7 @@ export default function SettingsTab({
               <div className="srow-nm">ทดสอบเสียง</div>
               <div className="srow-ds">เล่นประโยคตัวอย่างผ่าน ElevenLabs</div>
             </div>
-            <button className="btn btn-o btn-sm" onClick={onTest} disabled={!configured}>
+            <button className="btn btn-o btn-sm" onClick={testVoice} disabled={!configured}>
               <Ic.vol /> ทดสอบ
             </button>
           </div>
@@ -228,7 +227,7 @@ export default function SettingsTab({
               <div className="srow-nm">ล้างประวัติ</div>
               <div className="srow-ds">ลบประวัติการแจ้งเตือนทั้งหมด</div>
             </div>
-            <button className="btn btn-danger btn-sm" onClick={onClearHistory}><Ic.trash /> ล้างประวัติ</button>
+            <button className="btn btn-danger btn-sm" onClick={clearHistory}><Ic.trash /> ล้างประวัติ</button>
           </div>
         </div>
       </div>

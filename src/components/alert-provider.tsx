@@ -1,28 +1,52 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Alert, Priority, TabId, mkA, uid, sleep } from '@/lib/data';
+import {
+  createContext, useContext, useState, useRef, useEffect,
+  type ReactNode, type Dispatch, type SetStateAction,
+} from 'react';
+import { Alert, Priority, mkA, uid, sleep } from '@/lib/data';
 import { playChime, speak, pauseSpeech, resumeSpeech, cancelSpeech, fetchVoices, setVoiceId, getElevenLabsStatus } from '@/lib/alert-engine';
-import Sidebar from './sidebar';
-import DashboardTab from './dashboard-tab';
-import ManualTab from './manual-tab';
-import PresetsTab from './presets-tab';
-import SettingsTab from './settings-tab';
-import { Ic } from './icons';
 
 interface Toast {
   id: number;
   msg: string;
 }
 
-const TAB_TITLE: Record<TabId, string> = {
-  dashboard: 'แผงควบคุม',
-  manual:    'แจ้งเตือนด้วยตนเอง',
-  presets:   'ปุ่มลัด — เพิ่มการแจ้งเตือนด่วน',
-  settings:  'ตั้งค่าระบบ',
-};
+interface AlertContextValue {
+  queue: Alert[];
+  currentId: number | null;
+  isPlaying: boolean;
+  isPaused: boolean;
+  isMuted: boolean;
+  volume: number;
+  repeatCount: number;
+  history: Alert[];
+  toasts: Toast[];
+  pendingCount: number;
+  setVolume: Dispatch<SetStateAction<number>>;
+  setRepeatCount: Dispatch<SetStateAction<number>>;
+  setIsMuted: Dispatch<SetStateAction<boolean>>;
+  addAlert: (text: string, pri: Priority, src?: string) => void;
+  playNow: (text: string, pri: Priority) => void;
+  ackAlert: (id: number) => void;
+  delAlert: (id: number) => void;
+  togglePause: () => void;
+  toggleMute: () => void;
+  skipCurrent: () => void;
+  testVoice: () => Promise<void>;
+  testSpecificVoice: (voiceId: string) => Promise<string | null>;
+  clearHistory: () => void;
+}
 
-export default function App() {
+const AlertCtx = createContext<AlertContextValue | null>(null);
+
+export function useAlerts(): AlertContextValue {
+  const ctx = useContext(AlertCtx);
+  if (!ctx) throw new Error('useAlerts must be used within an AlertProvider');
+  return ctx;
+}
+
+export default function AlertProvider({ children }: { children: ReactNode }) {
   const [queue,       setQueue]       = useState<Alert[]>([]);
   const [currentId,   setCurrentId]   = useState<number | null>(null);
   const [isPlaying,   setIsPlaying]   = useState(false);
@@ -30,7 +54,6 @@ export default function App() {
   const [isMuted,     setIsMuted]     = useState(false);
   const [volume,      setVolume]      = useState(0.8);
   const [repeatCount, setRepeatCount] = useState(2);
-  const [tab,         setTab]         = useState<TabId>('dashboard');
   const [history,     setHistory]     = useState<Alert[]>([]);
   const [toasts,      setToasts]      = useState<Toast[]>([]);
 
@@ -96,7 +119,9 @@ export default function App() {
     setCurrentId(null);
     setIsPlaying(false);
   };
-  playAlertRef.current = playAlertFn;
+  // Keep the ref pointing at the latest closure so the queue trigger below
+  // always calls the current version (updates after each commit).
+  useEffect(() => { playAlertRef.current = playAlertFn; });
 
   useEffect(() => {
     if (!busyRef.current && !isPaused) {
@@ -166,75 +191,16 @@ export default function App() {
     return err;
   };
 
+  const clearHistory = () => { setHistory([]); addToast('ล้างประวัติแล้ว'); };
+
   const pendingCount = queue.filter((a) => a.status === 'pending').length;
 
-  return (
-    <div className="app">
-      <Sidebar
-        tab={tab}
-        setTab={setTab}
-        isPlaying={isPlaying}
-        isPaused={isPaused}
-        isMuted={isMuted}
-        pendingCount={pendingCount}
-      />
-      <div className="main">
-        <div className="topbar">
-          <span className="topbar-title">{TAB_TITLE[tab]}</span>
-          <div className="topbar-ctrl">
-            <button className={`ib${isMuted ? ' warn' : ''}`} onClick={toggleMute} title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}>
-              {isMuted ? <Ic.mute /> : <Ic.vol />}
-            </button>
-            <input
-              type="range" min="0" max="1" step=".05"
-              value={volume}
-              onChange={(e) => setVolume(+e.target.value)}
-              style={{ width: 80 }}
-              disabled={isMuted}
-              title="ระดับเสียง"
-            />
-          </div>
-        </div>
-        <div className="page">
-          {tab === 'dashboard' && (
-            <DashboardTab
-              queue={queue}
-              currentId={currentId}
-              isPlaying={isPlaying}
-              isPaused={isPaused}
-              history={history}
-              onAck={ackAlert}
-              onDel={delAlert}
-              onPause={togglePause}
-              onSkip={skipCurrent}
-            />
-          )}
-          {tab === 'manual' && (
-            <ManualTab onAdd={addAlert} onPlayNow={playNow} />
-          )}
-          {tab === 'presets' && (
-            <PresetsTab onAdd={addAlert} />
-          )}
-          {tab === 'settings' && (
-            <SettingsTab
-              volume={volume}
-              setVolume={setVolume}
-              repeatCount={repeatCount}
-              setRepeatCount={setRepeatCount}
-              isMuted={isMuted}
-              setIsMuted={setIsMuted}
-              onTest={testVoice}
-              onTestVoice={testSpecificVoice}
-              onClearHistory={() => { setHistory([]); addToast('ล้างประวัติแล้ว'); }}
-            />
-          )}
-        </div>
-      </div>
-      <div className="toasts">
-        {toasts.map((t) => (
-          <div key={t.id} className="toast">{t.msg}</div>
-        ))}
-      </div>
-    </div>
-  );
+  const value: AlertContextValue = {
+    queue, currentId, isPlaying, isPaused, isMuted, volume, repeatCount, history, toasts, pendingCount,
+    setVolume, setRepeatCount, setIsMuted,
+    addAlert, playNow, ackAlert, delAlert, togglePause, toggleMute, skipCurrent,
+    testVoice, testSpecificVoice, clearHistory,
+  };
+
+  return <AlertCtx.Provider value={value}>{children}</AlertCtx.Provider>;
 }

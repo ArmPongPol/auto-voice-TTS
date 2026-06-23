@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import AlertProvider from '@/components/alert-provider';
+import AppShell from '@/components/app-shell';
 
 const hankenGrotesk = Hanken_Grotesk({
   variable: '--font-sans',
@@ -22,7 +24,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th" className={`${hankenGrotesk.variable} ${jetbrainsMono.variable} h-full`}>
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden">
+        <AlertProvider>
+          <AppShell>{children}</AppShell>
+        </AlertProvider>
+      </body>
     </html>
   );
 }

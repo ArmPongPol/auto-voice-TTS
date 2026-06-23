@@ -1,21 +1,23 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { TabId } from '@/lib/data';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAlerts } from './alert-provider';
 import { Ic } from './icons';
-
-interface SidebarProps {
-  tab: TabId;
-  setTab: (tab: TabId) => void;
-  isPlaying: boolean;
-  isPaused: boolean;
-  isMuted: boolean;
-  pendingCount: number;
-}
 
 type Status = 'playing' | 'paused' | 'muted' | 'idle';
 
-export default function Sidebar({ tab, setTab, isPlaying, isPaused, isMuted, pendingCount }: SidebarProps) {
+const NAV: { href: string; label: string; Icon: () => ReactElement }[] = [
+  { href: '/',         label: 'แผงควบคุม',         Icon: Ic.dashboard },
+  { href: '/manual',   label: 'แจ้งเตือนด้วยตนเอง', Icon: Ic.mic },
+  { href: '/presets',  label: 'ปุ่มลัด',             Icon: Ic.zap },
+  { href: '/settings', label: 'ตั้งค่า',             Icon: Ic.settings },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const { isPlaying, isPaused, isMuted, pendingCount } = useAlerts();
   const status: Status = isMuted ? 'muted' : (isPlaying && !isPaused) ? 'playing' : isPaused ? 'paused' : 'idle';
   const statusLabel: Record<Status, string> = {
     playing: 'กำลังประกาศ',
@@ -23,12 +25,6 @@ export default function Sidebar({ tab, setTab, isPlaying, isPaused, isMuted, pen
     muted:   'ปิดเสียง',
     idle:    'พร้อมใช้งาน',
   };
-  const nav: { id: TabId; label: string; Icon: () => ReactElement }[] = [
-    { id: 'dashboard', label: 'แผงควบคุม',         Icon: Ic.dashboard },
-    { id: 'manual',    label: 'แจ้งเตือนด้วยตนเอง', Icon: Ic.mic },
-    { id: 'presets',   label: 'ปุ่มลัด',             Icon: Ic.zap },
-    { id: 'settings',  label: 'ตั้งค่า',             Icon: Ic.settings },
-  ];
   return (
     <div className="sb">
       <div className="sb-logo">
@@ -43,14 +39,14 @@ export default function Sidebar({ tab, setTab, isPlaying, isPaused, isMuted, pen
         <div className="sb-sub">ระบบแจ้งเตือนเสียงอัตโนมัติ</div>
       </div>
       <div className="sb-nav">
-        {nav.map(({ id, label, Icon }) => (
-          <button key={id} className={`nav-it${tab === id ? ' on' : ''}`} onClick={() => setTab(id)}>
+        {NAV.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} className={`nav-it${pathname === href ? ' on' : ''}`}>
             <Icon />
             <span>{label}</span>
-            {id === 'dashboard' && pendingCount > 0 && (
+            {href === '/' && pendingCount > 0 && (
               <span className="nav-count">{pendingCount}</span>
             )}
-          </button>
+          </Link>
         ))}
       </div>
       <div className="sb-foot">

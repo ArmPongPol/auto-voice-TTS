@@ -1,5 +1,4 @@
 export type Priority = 'emergency' | 'urgent' | 'normal';
-export type TabId = 'dashboard' | 'manual' | 'presets' | 'settings';
 
 export interface Alert {
   id: number;
